@@ -518,13 +518,7 @@ void CubicBezier2(point2d * b0, point2d * b1, point2d * b2, point2d * b3, object
 // s: passo (tamanho do deslocamento no eixo Y entre cada seção)
 // m: número de seções totais (m >= 2, ou seja, ao menos 1 "passo")
 // cor: cor aplicada à superfície
-//
-// Ideia: RegularPolygon2d(n,r) já sabe gerar os n vértices de um polígono
-// regular no plano (x,y) do SRU 2D. Aqui esse polígono é reaproveitado como
-// "perfil": copiamos os seus n pontos m vezes -- cada cópia (uma "seção" ou
-// "anel") deslocada s unidades a mais no eixo Y -- e ligamos anéis
-// consecutivos com faces laterais (quadriláteros), fechando a base e o topo
-// com duas faces poligonais de n lados (para gerar um sólido fechado).
+
 object3d * sup_translacional(int n, float r, float s, int m, int cor) {
 
   if (n < 3 || m < 2) return NULL; // polígono válido e ao menos 2 seções
@@ -532,13 +526,10 @@ object3d * sup_translacional(int n, float r, float s, int m, int cor) {
   int num_faces = n * (m - 1) + 2; // faces laterais entre seções consecutivas + 2 tampas
   object3d * obj = CreateObject3d(num_faces);
 
-  // 1) Gera o perfil (polígono regular) que será transladado
+  // Gera o perfil (polígono regular) que será transladado
   polygon * perfil = RegularPolygon2d((unsigned int)n, r);
 
-  // 2) Gera as m seções (anéis) empilhadas ao longo do eixo Y.
-  //    O par (x,y) do polígono 2D é reaproveitado como (x,z) no espaço 3D;
-  //    a altura de cada anel é dada pelo passo s. O sólido fica centralizado
-  //    em torno de y = 0 (metade das seções abaixo, metade acima).
+  // Gera as m seções (anéis) empilhadas ao longo do eixo Y.
   point3d ** anel = (point3d **) malloc(m * sizeof(point3d *));
   float y0 = -((m - 1) * s) / 2.0;
 
@@ -552,11 +543,7 @@ object3d * sup_translacional(int n, float r, float s, int m, int cor) {
       }
     }
 
-  // 3) Faces laterais: cada aresta (k, k+1) do anel i é ligada à mesma
-  //    aresta do anel i+1, formando um quadrilátero. A ordem dos pontos
-  //    segue a regra da mão direita para que a normal aponte para fora
-  //    (para longe do eixo Y). Essa ordem foi validada testando
-  //    SetNormalFace() e comparando com a direção radial esperada.
+  // Faces laterais: cada aresta (k, k+1) do anel i é ligada à mesma
   for (int i = 0; i < m - 1; i++) {
     for (int k = 0; k < n; k++) {
       int kk = (k + 1) % n;
@@ -572,7 +559,7 @@ object3d * sup_translacional(int n, float r, float s, int m, int cor) {
       }
     }
 
-  // 4) Tampa da base (anel 0): mesma ordem do perfil -> normal para -Y
+  // Tampa da base (anel 0): mesma ordem do perfil -> normal para -Y
   face * base = CreateFace(n);
   for (int k = 0; k < n; k++)
     SetPointFace(SetVertex3d(anel[0][k].x, anel[0][k].y, anel[0][k].z, 1.0, 0), base);
@@ -580,7 +567,7 @@ object3d * sup_translacional(int n, float r, float s, int m, int cor) {
   isFaceVisible(base, true);
   SetObject3d(base, obj);
 
-  // 5) Tampa do topo (anel m-1): ordem invertida -> normal para +Y
+  // Tampa do topo (anel m-1): ordem invertida -> normal para +Y
   face * topo = CreateFace(n);
   for (int k = n - 1; k >= 0; k--)
     SetPointFace(SetVertex3d(anel[m-1][k].x, anel[m-1][k].y, anel[m-1][k].z, 1.0, 0), topo);
@@ -588,13 +575,242 @@ object3d * sup_translacional(int n, float r, float s, int m, int cor) {
   isFaceVisible(topo, true);
   SetObject3d(topo, obj);
 
-  // 6) Calcula as normais de todas as faces do objeto de uma só vez
+  // Calcula as normais de todas as faces do objeto de uma só vez
   SetNormalFaceObj(obj);
 
-  // 7) Libera as estruturas auxiliares (o objeto 3D final permanece de pé)
+  // Libera as estruturas auxiliares (o objeto 3D final permanece de pé)
   free_polygon(perfil);
   for (int i = 0; i < m; i++) free(anel[i]);
   free(anel);
 
   return obj;
   }
+
+// Gera a seção plana de uma parábola: y = a * x^2
+// max_x: até onde a curva vai no eixo x (define a largura da "boca" do paraboloide)
+// passos: número de pontos (resolução da curva)
+polygon * gerar_perfil_parabola(float a, float max_x, int passos) {
+    if (passos < 2) return NULL;
+    
+    polygon * perfil = CreatePolig2d(passos);
+    float step = max_x / (passos - 1);
+    
+    for (int i = 0; i < passos; i++) {
+        float x = i * step;
+        float y = a * x * x; // Equação da parábola no plano
+        SetPolig2d(SetVertex2d(x, y, 1.0, 0), perfil);
+    }
+    return perfil;
+}
+
+// Exercício 2 (3D): Sólido de revolução em torno do eixo Y
+// perfil: polígono 2D contendo a seção plana (metade da parábola, do centro para a direita)
+// m: número de fatias (setores radiais do sólido)
+// cor: cor do objeto final
+object3d * solido_revolucao_y(polygon * perfil, int m, int cor) {
+    if (perfil == NULL || m < 3) return NULL;
+
+    int n = perfil->numbers_of_points;
+    object3d * obj = CreateObject3d((n - 1) * m);
+
+    // Aloca a matriz de pontos 3D: [fatia_radial][ponto_do_perfil]
+    point3d ** malha = (point3d **) malloc(m * sizeof(point3d *));
+    float delta_theta = 2.0 * M_PI / m;
+
+    for (int j = 0; j < m; j++) {
+        malha[j] = (point3d *) malloc(n * sizeof(point3d));
+        float theta = j * delta_theta;
+        
+        for (int i = 0; i < n; i++) {
+            // Rotação matemática em torno do eixo Y
+            malha[j][i].x = perfil->points[i].x * cos(theta);
+            malha[j][i].y = perfil->points[i].y;
+            malha[j][i].z = -perfil->points[i].x * sin(theta);
+        }
+    }
+
+    // Constrói as faces da malha costurando a fatia atual com a próxima
+    for (int j = 0; j < m; j++) {
+        int j_next = (j + 1) % m; // Para fechar a última fatia com a primeira (360 graus)
+
+        for (int i = 0; i < n - 1; i++) {
+            // Verifica se o ponto está tocando o eixo Y para evitar faces degeneradas
+            bool pole_i = (fabs(perfil->points[i].x) < 0.0001);
+            
+            face * f = NULL;
+            if (pole_i) {
+                // Se for a base do paraboloide no eixo Y, usamos um triângulo em vez de quadrilátero
+                f = CreateFace(3);
+                SetPointFace(SetVertex3d(malha[j][i].x, malha[j][i].y, malha[j][i].z, 1.0, 0), f);
+                SetPointFace(SetVertex3d(malha[j_next][i+1].x, malha[j_next][i+1].y, malha[j_next][i+1].z, 1.0, 0), f);
+                SetPointFace(SetVertex3d(malha[j][i+1].x, malha[j][i+1].y, malha[j][i+1].z, 1.0, 0), f);
+            } else {
+                // Corpo do paraboloide: criamos faces de 4 lados (Quadriláteros)
+                f = CreateFace(4);
+                SetPointFace(SetVertex3d(malha[j][i].x, malha[j][i].y, malha[j][i].z, 1.0, 0), f);
+                SetPointFace(SetVertex3d(malha[j_next][i].x, malha[j_next][i].y, malha[j_next][i].z, 1.0, 0), f);
+                SetPointFace(SetVertex3d(malha[j_next][i+1].x, malha[j_next][i+1].y, malha[j_next][i+1].z, 1.0, 0), f);
+                SetPointFace(SetVertex3d(malha[j][i+1].x, malha[j][i+1].y, malha[j][i+1].z, 1.0, 0), f);
+            }
+
+            SetColorFace(f, cor);
+            isFaceVisible(f, true);
+            SetObject3d(f, obj);
+        }
+    }
+
+    SetNormalFaceObj(obj); // Fundamental para não bugar a iluminação / visibilidade da lib
+
+    // Libera a matriz temporária
+    for (int j = 0; j < m; j++) {
+        free(malha[j]);
+    }
+    free(malha);
+
+    return obj;
+}
+
+// Gerar a seção plana de uma hipérbole no plano XY
+// a: raio mínimo no centro (cintura do sólido)
+// b: fator de abertura vertical
+// max_y: define a altura do sólido (variando de -max_y até +max_y)
+// passos: número de pontos na curva (resolução vertical)
+polygon * gerar_perfil_hiperbola(float a, float b, float max_y, int passos) {
+    if (passos < 2) return NULL;
+    
+    polygon * perfil = CreatePolig2d(passos);
+    // Varia de -max_y até max_y para criar um sólido simétrico e centrado
+    float step = (2.0 * max_y) / (passos - 1);
+    
+    for (int i = 0; i < passos; i++) {
+        float y = -max_y + i * step;
+        // Isolando x na equação da hipérbole: x = a * sqrt(1 + (y^2 / b^2))
+        float x = a * sqrt(1.0 + (y * y) / (b * b));
+        
+        SetPolig2d(SetVertex2d(x, y, 1.0, 0), perfil);
+    }
+    return perfil;
+}
+
+// Avalia o ponto da Curva de Bézier Cúbica em 3D para um dado 't' (0.0 a 1.0)
+point3d eval_bezier3d(point3d p0, point3d p1, point3d p2, point3d p3, float t) {
+    float u = 1.0 - t;
+    float b0 = u * u * u;
+    float b1 = 3 * u * u * t;
+    float b2 = 3 * u * t * t;
+    float b3 = t * t * t;
+    
+    point3d p;
+    p.x = b0 * p0.x + b1 * p1.x + b2 * p2.x + b3 * p3.x;
+    p.y = b0 * p0.y + b1 * p1.y + b2 * p2.y + b3 * p3.y;
+    p.z = b0 * p0.z + b1 * p1.z + b2 * p2.z + b3 * p3.z;
+    return p;
+}
+
+// Calcula o vetor derivada (tangente) da Curva de Bézier Cúbica
+vector3d deriv_bezier3d(point3d p0, point3d p1, point3d p2, point3d p3, float t) {
+    float u = 1.0 - t;
+    float c0 = 3 * u * u;
+    float c1 = 6 * u * t;
+    float c2 = 3 * t * t;
+    
+    vector3d d;
+    d.x = c0 * (p1.x - p0.x) + c1 * (p2.x - p1.x) + c2 * (p3.x - p2.x);
+    d.y = c0 * (p1.y - p0.y) + c1 * (p2.y - p1.y) + c2 * (p3.y - p2.y);
+    d.z = c0 * (p1.z - p0.z) + c1 * (p2.z - p1.z) + c2 * (p3.z - p2.z);
+    return d;
+}
+
+// Exercício 4: Tubo deslocado sobre 4 curvas de Bézier concatenadas
+// pts: array contendo exatos 13 pontos (P0 a P12)
+// n_lados: lados do polígono que forma o cano (ex: 4=quadrado, 8=octógono)
+// raio: espessura do cano
+// m_passos: quantidade de seções transversais
+// cor: cor do objeto
+object3d * tubo_bezier_concatenado(point3d * pts, int n_lados, float raio, int m_passos, int cor) {
+    if (m_passos < 2 || n_lados < 3) return NULL;
+
+    point3d ** malha = (point3d **) malloc(m_passos * sizeof(point3d *));
+    polygon * perfil = RegularPolygon2d((unsigned int)n_lados, raio);
+
+    float step = 1.0 / (m_passos - 1);
+    
+    for (int i = 0; i < m_passos; i++) {
+        float u = i * step;            // 'u' varia de 0.0 a 1.0 cobrindo as 4 curvas
+        int c = (int)(u * 4.0);        // Identifica qual sub-curva usar (0, 1, 2 ou 3)
+        if (c >= 4) c = 3;             // Garante o limite no final do trajeto
+        
+        float t = u * 4.0 - c;         // Converte para 't' local (0.0 a 1.0) dentro da sub-curva
+        if (u >= 1.0) t = 1.0;
+
+        // Pega os 4 pontos de controle que regem o trecho atual
+        point3d p0 = pts[c*3];
+        point3d p1 = pts[c*3 + 1];
+        point3d p2 = pts[c*3 + 2];
+        point3d p3 = pts[c*3 + 3];
+
+        // Avalia posição da trilha e o vetor tangente
+        point3d pos = eval_bezier3d(p0, p1, p2, p3, t);
+        vector3d T = deriv_bezier3d(p0, p1, p2, p3, t);
+        
+        // Normaliza a tangente (O eixo Z do polígono no espaço local)
+        float norm_T = sqrt(T.x*T.x + T.y*T.y + T.z*T.z);
+        if (norm_T > 0.0001) { T.x /= norm_T; T.y /= norm_T; T.z /= norm_T; }
+        else { T.x = 0; T.y = 1; T.z = 0; } // Fallback de segurança
+
+        // Define um vetor "Cima" auxiliar. Se a tangente for muito vertical, usa o eixo X
+        vector3d up = {0.0, 1.0, 0.0};
+        if (fabs(T.y) > 0.99) { up.x = 1.0; up.y = 0.0; up.z = 0.0; }
+
+        // Cria o eixo X local (Normal: Tangente X Up)
+        vector3d N; 
+        N.x = T.y*up.z - T.z*up.y; N.y = T.z*up.x - T.x*up.z; N.z = T.x*up.y - T.y*up.x;
+        float norm_N = sqrt(N.x*N.x + N.y*N.y + N.z*N.z);
+        N.x /= norm_N; N.y /= norm_N; N.z /= norm_N;
+
+        // Cria o eixo Y local (Binormal: Normal X Tangente)
+        vector3d B;
+        B.x = N.y*T.z - N.z*T.y; B.y = N.z*T.x - N.x*T.z; B.z = N.x*T.y - N.y*T.x;
+
+        // Aplica a base ortogonal local aos vértices 2D para colocá-los no espaço 3D
+        malha[i] = (point3d *) malloc(n_lados * sizeof(point3d));
+        for (int k = 0; k < n_lados; k++) {
+            float px = perfil->points[k].x;
+            float py = perfil->points[k].y;
+            
+            // Transformação Linear: P3D = Pos + px*N + py*B
+            malha[i][k].x = pos.x + px * N.x + py * B.x;
+            malha[i][k].y = pos.y + px * N.y + py * B.y;
+            malha[i][k].z = pos.z + px * N.z + py * B.z;
+        }
+    }
+
+    // Costura das Faces entre os anéis gerados
+    int num_faces = n_lados * (m_passos - 1);
+    object3d * obj = CreateObject3d(num_faces);
+
+    for (int i = 0; i < m_passos - 1; i++) {
+        for (int k = 0; k < n_lados; k++) {
+            int k_next = (k + 1) % n_lados;
+            face * f = CreateFace(4);
+            
+            // Os 4 pontos do quadrilátero lateral
+            SetPointFace(SetVertex3d(malha[i][k].x, malha[i][k].y, malha[i][k].z, 1.0, 0), f);
+            SetPointFace(SetVertex3d(malha[i][k_next].x, malha[i][k_next].y, malha[i][k_next].z, 1.0, 0), f);
+            SetPointFace(SetVertex3d(malha[i+1][k_next].x, malha[i+1][k_next].y, malha[i+1][k_next].z, 1.0, 0), f);
+            SetPointFace(SetVertex3d(malha[i+1][k].x, malha[i+1][k].y, malha[i+1][k].z, 1.0, 0), f);
+
+            SetColorFace(f, cor);
+            isFaceVisible(f, true);
+            SetObject3d(f, obj);
+        }
+    }
+
+    SetNormalFaceObj(obj);
+
+    for (int i = 0; i < m_passos; i++) free(malha[i]);
+    free(malha);
+    free_polygon(perfil);
+
+    return obj;
+}

@@ -1,13 +1,11 @@
-
-// Superfície de revolução (em torno do eixo y na base do observador)
-
 #include "cg3d.h"
+#include "exercicios.h"
 
 int main(int argc, char ** argv) {
   float zvp, zcp;
   object3d * ob3d_sru, * ob3d_obs, * ob3d_proj;
   vector3d * observador, * alvo, * viewup;  
-  matrix3d * viewMatrix, * m;
+  matrix3d * viewMatrix, * m, * m_trans;
  
   bufferdevice * monitor;
   window * janela;
@@ -23,19 +21,33 @@ int main(int argc, char ** argv) {
   __drawdisplay * display;
   SetDisplay(&display,NULL); 
   
-  print("Executando...","red");
+  print("Executando Tubo Deslocado em Spline de Bézier...","red");
  
   monitor = CreateBuffer(600,600);
   par = InitGraf(monitor,argv[0]);
   
-  janela = CreateWindow(-10.0,-10.0,10.0,10.0);
+  janela = CreateWindow(-45.0,-45.0,45.0,45.0);
   porta = CreateViewPort(1,1,600,600,"default");
 
-  // cria uma superfície de revolução (esfera)
-  // número de lados do polígono gerador
-  // raio do polígono gerador
-  // número de fatias do objeto gerado
-  ob3d_sru = sphere(20,10.0,30);
+  // ==========================================
+  // CRIANDO O TUBO (EXERCÍCIO 4)
+  // ==========================================
+  // 13 Pontos de controle modelando um caminho serpenteante (como uma hélice dupla)
+  point3d pts_controle[13] = {
+      {  0, -30,   0, 1.0, 0}, { 15, -20,  15, 1.0, 0}, { 15, -10, -15, 1.0, 0}, {  0,   0,   0, 1.0, 0}, // Trecho 1
+      {-15,  10,  15, 1.0, 0}, {-15,  20, -15, 1.0, 0}, {  0,  30,   0, 1.0, 0}, // Trecho 2
+      { 15,  40,  15, 1.0, 0}, { 15,  50, -15, 1.0, 0}, {  0,  60,   0, 1.0, 0}, // Trecho 3
+      {-15,  70,  15, 1.0, 0}, {-15,  80, -15, 1.0, 0}, {  0,  90,   0, 1.0, 0}  // Trecho 4
+  };
+
+  // Cria um "cano" com perfil octogonal (8 lados), raio 3.5 e 60 subdivisões longitudinais
+  ob3d_sru = tubo_bezier_concatenado(pts_controle, 8, 3.5, 60, 2);
+
+  // Desce o objeto inteiro um pouco no eixo Y para ficar centralizado na tela
+  m_trans = SetSftMatrix3d(0.0, -30.0, 0.0);
+  TransObject3d(m_trans, ob3d_sru);
+  free(m_trans);
+  // ==========================================
   
   observador = SetVetor3d(0.0,0.0,100.0);
   alvo = SetVetor3d(0.0,0.0,0.0);
@@ -46,13 +58,9 @@ int main(int argc, char ** argv) {
   free(viewMatrix);
   free_object3d(ob3d_sru);
   
-  // projeção perspectiva
-  // coordenadas do ponto de vista do observador
   zvp = 40.0; zcp = -40.0;
   ob3d_proj = PerspProjBuffer(ob3d_obs,zvp,zcp);
   
-  // Armazena a projeção no buffer do SRD
-  // O último parâmetro indica que não deve haver preenchimento (modelo wireframe)
   drawObject3d(line,fill,ob3d_proj,janela,porta,0);
   free_object3d(ob3d_proj);
 
@@ -103,8 +111,5 @@ int main(int argc, char ** argv) {
   CloseGraf(par);
   
   print("Terminado com êxito!","blue");  
-
   return 0; 
-  }
-
-
+}

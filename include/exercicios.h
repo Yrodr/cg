@@ -24,7 +24,19 @@ void elipse_bresenham(int, int, int, int, viewport *, int);
 polygon * BezierCurve2(point2d *, point2d *, point2d *, point2d *, int, int);
 void CubicBezier2(point2d *, point2d *, point2d *, point2d *, object2d *, int);
 
-// Exercícios da segunda avaliação prática
+// Exercícios 1
 object3d * sup_translacional(int, float, float, int, int);
+
+// Exercícios 2
+polygon * gerar_perfil_parabola(float, float, int);
+object3d * solido_revolucao_y(polygon *, int, int);
+
+// Exercícios 3
+polygon * gerar_perfil_hiperbola(float, float, float, int);
+
+// Exercício 4
+point3d eval_bezier3d(point3d, point3d, point3d, point3d, float);
+vector3d deriv_bezier3d(point3d, point3d, point3d, point3d, float);
+object3d * tubo_bezier_concatenado(point3d *, int, float, int, int);
 
 #endif
