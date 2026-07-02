@@ -513,9 +513,88 @@ void CubicBezier2(point2d * b0, point2d * b1, point2d * b2, point2d * b3, object
 
 
 // Exercício 1 (3D): Superfície Translacional
-// n: número de lados do polígono regular
+// n: número de lados do polígono regular (perfil da seção transversal)
 // r: raio do polígono base
 // s: passo (tamanho do deslocamento no eixo Y entre cada seção)
-// m: número de seções totais
+// m: número de seções totais (m >= 2, ou seja, ao menos 1 "passo")
 // cor: cor aplicada à superfície
+//
+// Ideia: RegularPolygon2d(n,r) já sabe gerar os n vértices de um polígono
+// regular no plano (x,y) do SRU 2D. Aqui esse polígono é reaproveitado como
+// "perfil": copiamos os seus n pontos m vezes -- cada cópia (uma "seção" ou
+// "anel") deslocada s unidades a mais no eixo Y -- e ligamos anéis
+// consecutivos com faces laterais (quadriláteros), fechando a base e o topo
+// com duas faces poligonais de n lados (para gerar um sólido fechado).
+object3d * sup_translacional(int n, float r, float s, int m, int cor) {
 
+  if (n < 3 || m < 2) return NULL; // polígono válido e ao menos 2 seções
+
+  int num_faces = n * (m - 1) + 2; // faces laterais entre seções consecutivas + 2 tampas
+  object3d * obj = CreateObject3d(num_faces);
+
+  // 1) Gera o perfil (polígono regular) que será transladado
+  polygon * perfil = RegularPolygon2d((unsigned int)n, r);
+
+  // 2) Gera as m seções (anéis) empilhadas ao longo do eixo Y.
+  //    O par (x,y) do polígono 2D é reaproveitado como (x,z) no espaço 3D;
+  //    a altura de cada anel é dada pelo passo s. O sólido fica centralizado
+  //    em torno de y = 0 (metade das seções abaixo, metade acima).
+  point3d ** anel = (point3d **) malloc(m * sizeof(point3d *));
+  float y0 = -((m - 1) * s) / 2.0;
+
+  for (int i = 0; i < m; i++) {
+    float y = y0 + i * s;
+    anel[i] = (point3d *) malloc(n * sizeof(point3d));
+    for (int k = 0; k < n; k++) {
+      anel[i][k].x = perfil->points[k].x;
+      anel[i][k].y = y;
+      anel[i][k].z = perfil->points[k].y;
+      }
+    }
+
+  // 3) Faces laterais: cada aresta (k, k+1) do anel i é ligada à mesma
+  //    aresta do anel i+1, formando um quadrilátero. A ordem dos pontos
+  //    segue a regra da mão direita para que a normal aponte para fora
+  //    (para longe do eixo Y). Essa ordem foi validada testando
+  //    SetNormalFace() e comparando com a direção radial esperada.
+  for (int i = 0; i < m - 1; i++) {
+    for (int k = 0; k < n; k++) {
+      int kk = (k + 1) % n;
+
+      face * f = CreateFace(4);
+      SetPointFace(SetVertex3d(anel[i][k].x,    anel[i][k].y,    anel[i][k].z,    1.0, 0), f);
+      SetPointFace(SetVertex3d(anel[i+1][k].x,  anel[i+1][k].y,  anel[i+1][k].z,  1.0, 0), f);
+      SetPointFace(SetVertex3d(anel[i+1][kk].x, anel[i+1][kk].y, anel[i+1][kk].z, 1.0, 0), f);
+      SetPointFace(SetVertex3d(anel[i][kk].x,   anel[i][kk].y,   anel[i][kk].z,   1.0, 0), f);
+      SetColorFace(f, cor);
+      isFaceVisible(f, true);
+      SetObject3d(f, obj);
+      }
+    }
+
+  // 4) Tampa da base (anel 0): mesma ordem do perfil -> normal para -Y
+  face * base = CreateFace(n);
+  for (int k = 0; k < n; k++)
+    SetPointFace(SetVertex3d(anel[0][k].x, anel[0][k].y, anel[0][k].z, 1.0, 0), base);
+  SetColorFace(base, cor);
+  isFaceVisible(base, true);
+  SetObject3d(base, obj);
+
+  // 5) Tampa do topo (anel m-1): ordem invertida -> normal para +Y
+  face * topo = CreateFace(n);
+  for (int k = n - 1; k >= 0; k--)
+    SetPointFace(SetVertex3d(anel[m-1][k].x, anel[m-1][k].y, anel[m-1][k].z, 1.0, 0), topo);
+  SetColorFace(topo, cor);
+  isFaceVisible(topo, true);
+  SetObject3d(topo, obj);
+
+  // 6) Calcula as normais de todas as faces do objeto de uma só vez
+  SetNormalFaceObj(obj);
+
+  // 7) Libera as estruturas auxiliares (o objeto 3D final permanece de pé)
+  free_polygon(perfil);
+  for (int i = 0; i < m; i++) free(anel[i]);
+  free(anel);
+
+  return obj;
+  }

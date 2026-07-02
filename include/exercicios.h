@@ -22,6 +22,7 @@ void elipse_bresenham(int, int, int, int, viewport *, int);
 polygon * BezierCurve2(point2d *, point2d *, point2d *, point2d *, int, int);
 void CubicBezier2(point2d *, point2d *, point2d *, point2d *, object2d *, int);
 
+// Exercícios da segunda avaliação prática
+object3d * sup_translacional(int, float, float, int, int);
+
 #endif
-
-
