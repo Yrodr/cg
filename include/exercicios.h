@@ -1,6 +1,8 @@
-#ifndef __EXER__
-#define __EXER__
+#ifndef EXERCICIOS_H
+#define EXERCICIOS_H
 
+#include "cg2d.h"
+#include "cg3d.h"
 // Protótipos das funções para conversão de segmentos de reta
 // A rasterização é realizada diretamente no SRD
 
