@@ -1,0 +1,25 @@
+
+Comandos básicos em um shell (prompt) em SO baseados em Linux:
+
+1) pwd: encontra o caminho completo do diretório atual.
+
+2) cd: permite navegar até determinada pasta.
+
+3) ls: lista todos os arquivos e pastas dentro de um diretório.
+
+4) cat: lista os conteúdos de um arquivo de texto na saída padrão (sdout).
+
+5) cp: copia arquivos do diretório atual para uma pasta diferente.
+
+6) mv: pode ser usado para mover ou renomear arquivos.
+
+7) mkdir: cria um novo diretório.
+
+8) rm: remove arquivos e diretórios.
+
+9) sudo: executa um comando como superusuário.
+
+10) find: para buscar arquivos em diretórios.
+
+11) clear: limpa a tela de comandos, removendo informações visuais anteriores e iniciando um novo contexto de trabalho.
+

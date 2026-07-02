@@ -1,0 +1,51 @@
+
+TARGET_COLORS = Número máximo de cores por canal RGB ou CMY
+Definido em cg2d.h -> TARGET_COLORS = 256 (valor default)
+
+Observação: os mapas de cores (colomaps) devem ser passados 
+como parâmetros na criação das view-ports
+
+Colormaps pré-definidos:
+
+default:
+	0 -> preto
+	1 -> vermelho
+	2 -> verde
+	3 -> azul
+	4 -> ciano
+	5 -> magenta
+	6 -> amarelo
+	7 -> branco
+	
+gray:
+	256 tons de cinza (0 - 255)
+	
+red:
+	256 tons de vermelho (0 - 255)
+	
+green:
+	256 tons de verde (0 - 255)
+
+blue:
+	256 tons de azul (0 - 255)
+	
+cyan:
+	256 tons de ciano (0 - 255)
+	
+magenta:
+	256 tons de magenta (0 - 255)
+
+yellow:
+	256 tons de amarelo (0 - 255)
+
+p&b:
+	0 -> preto
+	1 -> branco
+	
+rainbow($):
+	($) pode variar de 1 a 4 (4 métodos distintos)
+	256 cores (0 - 255) simulando as cores do arco-íris
+
+
+
+
